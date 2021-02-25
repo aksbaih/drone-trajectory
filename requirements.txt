@@ -1,3 +1,7 @@
 numpy
 wget
 tqdm
+torch
+pandas
+scipy
+tensorboard
