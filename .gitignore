@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.idea
+.DS_Store
+
+# dataset
+dataset/data/
+dataset/unzips/
+dataset/zips/
