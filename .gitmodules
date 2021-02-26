@@ -1,0 +1,3 @@
+[submodule "baseline/Trajectory-Transformer"]
+	path = baseline/Trajectory-Transformer
+	url = git@github.com:FGiuliari/Trajectory-Transformer.git
