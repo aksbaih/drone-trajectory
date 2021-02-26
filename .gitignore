@@ -135,3 +135,12 @@ dmypy.json
 dataset/data/
 dataset/unzips/
 dataset/zips/
+baseline/Trajectory-Transformer
+
+# tex
+*.out
+*.blg
+*.bbl
+*.aux
+*.synctex.gz
+
