@@ -1,5 +1,5 @@
 # drone-trajectory
-Project for CS236G involving transformers and GANs.
+Project for Stanford CS236G involving transformers and GANs. Refer to [the report](report/report.pdf) for more.
 
 ## Submodules
 This repo contains the following submodule repos:
