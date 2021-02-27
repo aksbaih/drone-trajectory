@@ -12,7 +12,7 @@ import os
 import wget
 import zipfile
 from tqdm import tqdm
-from .uzh_fpv_utils import parseTextFile
+from uzh_fpv_utils import parseTextFile
 
 if __name__=="__main__":
     # download the zip files listed in dataset_links.txt
