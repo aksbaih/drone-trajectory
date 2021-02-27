@@ -47,10 +47,23 @@
 
 \note{Code available at \href{https://github.com/aksbaih/drone-trajectory}{https://github.com/aksbaih/drone-trajectory}.}
 
-\paragraph{Dataset.}$ $
-\\\\ I'm using the UZH FPV Dataset \cite{Delmerico19icra} for this project. The authors of this dataset wanted to challenge the state of the art state estimation models in UAV racing by introducing highspeed manuevers in real-world environments. This task aims to approximate the trajectory and momentum of the drone based on minimal sensory input (in this case, the grayscale view through a camera attached to the drone). The dataset consists of frames taken at 50Hz tied to a ground truth representing the momentum around each of the 6 degrees of freedom the drone has in 16 flights lasting around 100 seconds each. 
-\\\\ I'm reusing the dataset for a different task here: I'm interested in predicting the immediate trajectory of a drone based on its location history as observed from a third-party. This trajectory info is embedded in the ground truth of the original dataset. Therefore, I use the dataset toolbox and my own code in the linked repo to generate the xyz location of the drone at each frame of a constant FPS and store it locally as a txt file for each flight.  Since I'm going to be using transformers, I reduce the FPS to 8 instead of 50 to span larger trajectory in less memory but this is subject to change based on later experiments.  This totals 11486 frames.  Figure \ref{DatasetExamples} shows example trajectories.
-\\\\ Since the number of flights is not very big and each flight has a different pattern of trajectories, I reused the method of \cite{giuliari2020transformer} where the validation set is sampled as random windows of the training set when constructing the dataloader. 
+\section{Introduction}
+\paragraph{Trajectory Prediction}$ $
+\\This task is concerned with estimating the position of objects at a given point in the future. People have been interested in modeling this generic task since the beginning of science, but even more recently with the efforts to build autonomous agents that need to predict the trajectories of the environment in order to plan their own. An example of that is Pedastrian Trajectory Prediction needed when Autonomous Vehicles want to predict the trajectories of humans to avoid colliding with them. 
+
+\paragraph{Pedistrian Trajectory Prediction}$ $
+\\Many datasets and benchmarks \cite{stanforddrone}\cite{trajneteval} have been introduced for the task of predicting the trajectory of pedistrians.  The earlier models relied sololey on recurrent encoding on the position history of the individual pedastrians to predict their future trajectory as in \cite{sociallstm} which also tackled the social aspect of such trajectories.  After that, researchers started accounting for semantics of the space which heavily improved their predictions as in \cite{ynet} and \cite{sophie}. Generative adversarial networks have been also used for their ability to produce multiple possible trajectories, allowing for better recall (better safe than sorry) as in \cite{sophie} and \cite{socialgan}. 
+
+\paragraph{Drone Racing}$ $
+\\Drones have become popular with ameture and professional racing enthusiasts in additino to its many practical uses in the modern economy \cite{Delmerico19icra}. Autonomous drones are yet more challenging than automobiles because their trajectories are 3-dimensional in the air. Yet it is important for an autonomous drone to predict the behavior of other surronding drones to avoid collision. This becomes harder and requires faster inference under racing conditions, where all drones (including the ego) are maneuvaring at high velocities.  
+
+\section{Dataset}
+\paragraph{Source}$ $
+\\I'm using the UZH FPV Dataset \cite{Delmerico19icra} for this project. The authors of this dataset wanted to challenge the state of the art state estimation models in UAV racing by introducing highspeed manuevers in real-world environments. This task aims to approximate the trajectory and momentum of the drone based on minimal sensory input (in this case, the grayscale view through a camera attached to the drone). The dataset consists of frames taken at 50Hz tied to a ground truth representing the momentum around each of the 6 degrees of freedom the drone has in 16 flights lasting around 100 seconds each. 
+\paragraph{Processing}$ $
+\\I'm reusing the dataset for a different task here: I'm interested in predicting the immediate trajectory of a drone based on its location history as observed from a third-party (meaning we shouldn't assume access to the drone camera but we can observe its position history). This trajectory info is embedded in the ground truth of the original dataset. Therefore, I use the dataset toolbox and my own code in the linked repo to generate the xyz location of the drone at each frame of a constant FPS and store it locally as a txt file for each flight.  Since I'm going to be using transformers, I reduce the FPS to 8 instead of 50 to span larger trajectory in less memory but this is subject to change based on later experiments.  This totals 11486 frames.  Figure \ref{DatasetExamples} shows example trajectories.
+\paragraph{Division}$ $
+\\Since the number of flights is not very big and each flight has a different pattern of trajectories, I reused the method of \cite{giuliari2020transformer} where the validation set is sampled as random windows of the training set when constructing the dataloader. 
 I'm using 64 frames from each flight for validation, making around 9\% (1k frames) of all frames, but this could increase if needed. For the testing set, I left aside two flights that were considered "medium" according to \citep{Delmerico19icra} consisting of 1.9k frames, or 17\% of the original count. This leaves 74\% (8.6k frames) for training.
 \begin{figure}
     \centering
@@ -59,6 +72,43 @@ I'm using 64 frames from each flight for validation, making around 9\% (1k frame
     \caption{Example flight trajectories from the UZH FPV Dataset \cite{Delmerico19icra}}
     \label{DatasetExamples}
 \end{figure}
+
+\section{Approach}
+\paragraph{The Transformer}$ $
+\\Transformers have shown great success with sequential tasks in NLP and other domains \cite{attentionisallyouneed}. They also offer parallelization making them faster than recurrent approaches like LSTMs. This makes them a good fit for my task given the sequential nature of trajectories and the need for speed of inference in a drone race. The purely transformer-based approach introduced by \cite{giuliari2020transformer} for pedistrian trajectory prediction achieved state of the art results for that task. Therefore, I'm using their approach as the baseline and backbone of my GAN-based approach.
+
+\paragraph{The Adversarial Loss}$ $
+\\The baseline transformer uses MSE loss given the spacial nature of the data. However, adversarial loss allows for our desired diversity in the output. Figure \ref{gen_disc_figure} shows my proposed architecture which uses the transformer as a generator that takes in the positional history $x_{i-n}...x_{i-1}, x_{i}$, concatenated with random seeds, and the temporal embedding proposed in \cite{giuliari2020transformer} as input. While the decoder generates a trajectory $y_0, y_1, ... y_m$. 
+\\ The discriminator is an encoder that takes the concatenated sequence making the candidate trajectory and gives it a fakeness score as insipred by \cite{fakereviewsgan}. These two components make a complete GAN that can be trained with BCE loss to generate diverse predicted trajectories.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\textwidth]{gen-disc-figure.pdf}\\
+    \caption{The proposed GAN architecture.  The circle represents the temporal embedding for each timestep as proposed in \cite{giuliari2020transformer}}
+    \label{gen_disc_figure}
+\end{figure}
+
+\paragraph{Evaluation}$ $
+\\I would like the predicted trajectory to be similar to the ground truth. The literature \cite{giuliari2020transformer} uses the Mean Average Displacement MAD and the Final Average Displacement FAD. The latter of which averages the distance of the final state of the predicted trajectory from the final state of the ground truth, while the former does the same averaging over all the points of the trajectories. 
+\\Since we desire diversity in the GAN output, it is not fair to penalize it for the trajectories that don't match the ground truth. Therefore, I propose to consider only the minimum MAD and FAD over a batch of generations with diverse random vectors for the same history sequence. I could also experiement with the truncation trick to produce predictions with high fidelity and treat them the same way as the single-prediction baseline.  
+\\To measure the diversity of the GAN outputs, I propose to use a clustering algorithm (e.g. k-means) over its output on a batch of random vectors for the same history sequence and find the distance between these clusters.  This metric is very loose because I'm not comparing the model diversity to the baseline, but it's a good indicator that there's at least some diversity in the generations. 
+
+\section{Experiments and Results}
+\paragraph{The Baseline}$ $
+\\I trained the simple transformer baseline using the same implementation linked in \cite{giuliari2020transformer} with the training dataset for 64 epochs in 45 minutes on a Tesla K80. The batch size was 150 and the number of validation frames was 64 per flight (as described in the dataset section of this report).  I also requested that the model be evaluated on the test set on every epoch for more insight given the small size of the validation set and ended up with both evaluations yielding almost identical curves with better results on the test set.  Figure \ref{baseline_train_loss} shows the results. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.45\textwidth]{loss_train_baseline.pdf}
+     \includegraphics[width=0.45\textwidth]{test_mad_train_baseline}\\
+    \caption{The x axis is the epoch. The left chart is the average loss per epoch. The right chart is the MAD on the test set at each epoch.}
+    \label{baseline_train_loss}
+\end{figure}
+
+\section{Moving Forward}
+After running the baseline, I'm ready to start implementing my changes to convert the model into the GAN I proposed. After that, I will train it and run the same metrics discussed in the evaluation section.  I can then compare their results and derive my conclusions on how well and diverse the GAN-based model generates. 
+
+
 
 \bibliographystyle{unsrt}
 \bibliography{references}
