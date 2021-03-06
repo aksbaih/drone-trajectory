@@ -151,7 +151,7 @@ def main():
             target=(batch['trg'][:,:-1,-3:].to(device)-mean.to(device))/std.to(device)
             target_c=torch.zeros((target.shape[0],target.shape[1],1)).to(device)
             target=torch.cat((target,target_c),-1)
-            start_of_seq = torch.Tensor([0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(target.shape[0],1,1).to(device)
+            start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(target.shape[0],1,1).to(device)
 
             dec_inp = torch.cat((start_of_seq, target), 1)
 
@@ -193,7 +193,7 @@ def main():
 
                 inp = (batch['src'][:, 1:, -3:].to(device) - mean.to(device)) / std.to(device)
                 src_att = torch.ones((inp.shape[0], 1, inp.shape[1])).to(device)
-                start_of_seq = torch.Tensor([0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
+                start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
                     device)
                 dec_inp = start_of_seq
 
@@ -243,7 +243,7 @@ def main():
 
                     inp = (batch['src'][:, 1:, -3:].to(device) - mean.to(device)) / std.to(device)
                     src_att = torch.ones((inp.shape[0], 1, inp.shape[1])).to(device)
-                    start_of_seq = torch.Tensor([0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
+                    start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
                         device)
                     dec_inp=start_of_seq
 
