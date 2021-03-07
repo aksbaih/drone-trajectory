@@ -22,6 +22,7 @@ CUDA_VISIBLE_DEVICES=0 python train_individualTF.py \
     --name baseline \
     --obs 12 --preds 8 \
     --val_size 64 \
-    --max_epoch 240 \
-    --batch_size 100 
+    --max_epoch 360 \
+    --save_step 5 \
+    --batch_size 64 
 ```
