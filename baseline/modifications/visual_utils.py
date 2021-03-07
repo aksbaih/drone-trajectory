@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Visualize trajectories.')
     parser.add_argument('--mat_file', type=str, default='output/Individual/baseline/det_0.mat',
                         help="File generated from the model containing predictions")
-    parser.add_argument('--our_dir', type=str, default='vis',
+    parser.add_argument('--out_dir', type=str, default='vis',
                         help="Where to store the generated images")
     parser.add_argument('--begin', type=int, default=0,
                         help="Which frame to begin with")
