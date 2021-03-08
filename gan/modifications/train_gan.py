@@ -191,7 +191,7 @@ def main():
                                  {'input': batch['src'][:, :, :3].detach().cpu().numpy(),
                                   'gt': batch['trg'][:, :, :3].detach().cpu().numpy(),
                                   'pr': (fake_2[:, 1:, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
-                                        + batch['src'][:, -1:, :].cpu().numpy()})
+                                        + batch['src'][:, -1:, :3].cpu().numpy()})
 
 if __name__=='__main__':
     main()
