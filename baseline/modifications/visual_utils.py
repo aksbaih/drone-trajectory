@@ -40,9 +40,9 @@ def visualize(mat_file, out_dir, begin, end, increment, history_len):
         ax.set_xlim([-max_dis, max_dis])
         ax.set_ylim([-max_dis, max_dis])
         # and plot them all
-        ax.plot(*gt_i, fmt='D-.g', label='GT')
-        ax.plot(*pr_i, fmt='D-.b', label='Predicted')
-        ax.plot(*hs_i, color='D-.m', label='History')
+        ax.plot(*gt_i, 'D-.g', label='GT')
+        ax.plot(*pr_i, 'D-.b', label='Predicted')
+        ax.plot(*hs_i, 'D-.m', label='History')
         ax.set_title(f"{i:04}/{end:04}.png")
         ax.legend()
         # update history
