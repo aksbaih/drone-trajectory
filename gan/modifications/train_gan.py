@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--dataset_name',type=str,default='zara1')
     parser.add_argument('--obs',type=int,default=12)  # size of history steps in frames
     parser.add_argument('--preds',type=int,default=8)  # size of predicted trajectory in frames
+    parser.add_argument('--point_dim',type=int,default=3)  # number of dimensions (x,y,z) is 3
     parser.add_argument('--emb_size',type=int,default=512)
     parser.add_argument('--heads',type=int, default=8)
     parser.add_argument('--layers',type=int,default=6)
@@ -42,8 +43,9 @@ def main():
     parser.add_argument('--save_step', type=int, default=1)
     parser.add_argument('--warmup', type=int, default=10)
     parser.add_argument('--evaluate', type=bool, default=True)
-    parser.add_argument('--model_pth', type=str)
-    parser.add_argument('--eval_every', type=int, default=1)
+    parser.add_argument('--gen_pth', type=str)
+    parser.add_argument('--crit_pth', type=str)
+    parser.add_argument('--visual_step', type=int, default=10)
 
 
 
@@ -78,7 +80,7 @@ def main():
     except:
         pass
 
-    log=SummaryWriter('logs/Ind_%s'%model_name)
+    log=SummaryWriter('logs/gan_%s'%model_name)
 
     log.add_scalar('eval/mad', 0, 0)
     log.add_scalar('eval/fad', 0, 0)
@@ -106,11 +108,9 @@ def main():
 
 
 
-    import individual_TF
-    model=individual_TF.IndividualTF(3, 4, 4, N=args.layers,
-                   d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout,mean=[0,0],std=[0,0]).to(device)
-    if args.resume_train:
-        model.load_state_dict(torch.load(f'models/Individual/{args.name}/{args.model_pth}'))
+    # import individual_TF
+    # model=individual_TF.IndividualTF(3, 4, 4, N=args.layers,
+    #                d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout,mean=[0,0],std=[0,0]).to(device)
 
     tr_dl = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     val_dl = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
@@ -118,8 +118,8 @@ def main():
 
     #optim = SGD(list(a.parameters())+list(model.parameters())+list(generator.parameters()),lr=0.01)
     #sched=torch.optim.lr_scheduler.StepLR(optim,0.0005)
-    optim = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
-                        torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    # optim = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
+    #                     torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
     #optim=Adagrad(list(a.parameters())+list(model.parameters())+list(generator.parameters()),lr=0.01,lr_decay=0.001)
     epoch=0
 
@@ -138,188 +138,79 @@ def main():
     mean=torch.stack(means).mean(0)
     std=torch.stack(stds).mean(0)
 
-    scipy.io.savemat(f'models/Individual/{args.name}/norm.mat',{'mean':mean.cpu().numpy(),'std':std.cpu().numpy()})
-
-
-    while epoch<args.max_epoch:
-        epoch_loss=0
-        model.train()
-
-        for id_b,batch in enumerate(tr_dl):
-
-            optim.optimizer.zero_grad()
-            inp=(batch['src'][:,1:,-3:].to(device)-mean.to(device))/std.to(device)
-            target=(batch['trg'][:,:-1,-3:].to(device)-mean.to(device))/std.to(device)
-            target_c=torch.zeros((target.shape[0],target.shape[1],1)).to(device)
-            target=torch.cat((target,target_c),-1)
-            start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(target.shape[0],1,1).to(device)
-
-            dec_inp = torch.cat((start_of_seq, target), 1)
-
-            src_att = torch.ones((inp.shape[0], 1,inp.shape[1])).to(device)
-            trg_att=subsequent_mask(dec_inp.shape[1]).repeat(dec_inp.shape[0],1,1).to(device)
-
-
-
-
-            pred=model(inp, dec_inp, src_att, trg_att)
-
-            loss = F.pairwise_distance(pred[:, :,0:3].contiguous().view(-1, 3),
-                                       ((batch['trg'][:, :, -3:].to(device)-mean.to(device))/std.to(device)).contiguous().view(-1, 3).to(device)).mean() + torch.mean(torch.abs(pred[:,:,3]))
-            loss.backward()
-            optim.step()
-            print("train epoch %03i/%03i  batch %04i / %04i loss: %7.4f" % (epoch, args.max_epoch, id_b, len(tr_dl), loss.item()))
-            epoch_loss += loss.item()
-        #sched.step()
-        log.add_scalar('Loss/train', epoch_loss / len(tr_dl), epoch)
-        if epoch%args.save_step==0:
-
-            torch.save(model.state_dict(),f'models/Individual/{args.name}/{epoch:05d}.pth')
-
-
-
-        epoch+=1
-        if epoch % args.eval_every != 0: continue
-        epoch-=1
-
-        with torch.no_grad():
-            model.eval()
-
-            val_loss=0
-            step=0
-            model.eval()
-            gt = []
-            pr = []
-            inp_ = []
-            peds = []
-            frames = []
-            dt = []
-
-            for id_b, batch in enumerate(val_dl):
-                inp_.append(batch['src'])
-                gt.append(batch['trg'][:, :, 0:3])
-                frames.append(batch['frames'])
-                peds.append(batch['peds'])
-                dt.append(batch['dataset'])
-
-                inp = (batch['src'][:, 1:, -3:].to(device) - mean.to(device)) / std.to(device)
-                src_att = torch.ones((inp.shape[0], 1, inp.shape[1])).to(device)
-                start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
-                    device)
-                dec_inp = start_of_seq
-
-                for i in range(args.preds):
-                    trg_att = subsequent_mask(dec_inp.shape[1]).repeat(dec_inp.shape[0], 1, 1).to(device)
-                    out = model(inp, dec_inp, src_att, trg_att)
-                    dec_inp = torch.cat((dec_inp, out[:, -1:, :]), 1)
-
-                preds_tr_b = (dec_inp[:, 1:, 0:3] * std.to(device) + mean.to(device)).cpu().numpy().cumsum(1) + \
-                             batch['src'][ :, -1:, 0:3].cpu().numpy()
-                pr.append(preds_tr_b)
-                print("val epoch %03i/%03i  batch %04i / %04i" % (
-                    epoch, args.max_epoch, id_b, len(val_dl)))
-
-
-            peds = np.concatenate(peds, 0)
-            frames = np.concatenate(frames, 0)
-            dt = np.concatenate(dt, 0)
-            gt = np.concatenate(gt, 0)
-            dt_names = test_dataset.data['dataset_name']
-            pr = np.concatenate(pr, 0)
-            mad, fad, errs = baselineUtils.distance_metrics(gt, pr)
-            log.add_scalar('validation/MAD', mad, epoch)
-            log.add_scalar('validation/FAD', fad, epoch)
-
-
-
-
-            if args.evaluate:
-
-                model.eval()
-                gt = []
-                pr = []
-                inp_ = []
-                peds = []
-                frames = []
-                dt = []
-                
-                for id_b,batch in enumerate(test_dl):
-                    inp_.append(batch['src'])
-                    gt.append(batch['trg'][:,:,0:3])
-                    frames.append(batch['frames'])
-                    peds.append(batch['peds'])
-                    dt.append(batch['dataset'])
-
-                    inp = (batch['src'][:, 1:, -3:].to(device) - mean.to(device)) / std.to(device)
-                    src_att = torch.ones((inp.shape[0], 1, inp.shape[1])).to(device)
-                    start_of_seq = torch.Tensor([0, 0, 0, 1]).unsqueeze(0).unsqueeze(1).repeat(inp.shape[0], 1, 1).to(
-                        device)
-                    dec_inp=start_of_seq
-
-                    for i in range(args.preds):
-                        trg_att = subsequent_mask(dec_inp.shape[1]).repeat(dec_inp.shape[0], 1, 1).to(device)
-                        out = model(inp, dec_inp, src_att, trg_att)
-                        dec_inp=torch.cat((dec_inp,out[:,-1:,:]),1)
-
-
-                    preds_tr_b=(dec_inp[:,1:,0:3]*std.to(device)+mean.to(device)).cpu().numpy().cumsum(1)+batch['src'][:,-1:,0:3].cpu().numpy()
-                    pr.append(preds_tr_b)
-                    print("test epoch %03i/%03i  batch %04i / %04i" % (
-                    epoch, args.max_epoch, id_b, len(test_dl)))
-
-                peds = np.concatenate(peds, 0)
-                frames = np.concatenate(frames, 0)
-                dt = np.concatenate(dt, 0)
-                gt = np.concatenate(gt, 0)
-                inp_ = np.concatenate(inp_, 0)
-                dt_names = test_dataset.data['dataset_name']
-                pr = np.concatenate(pr, 0)
-                mad, fad, errs = baselineUtils.distance_metrics(gt, pr)
-
-
-                log.add_scalar('eval/DET_mad', mad, epoch)
-                log.add_scalar('eval/DET_fad', fad, epoch)
-
-
-                # log.add_scalar('eval/DET_mad', mad, epoch)
-                # log.add_scalar('eval/DET_fad', fad, epoch)
-
-                scipy.io.savemat(f"output/Individual/{args.name}/det_{epoch}.mat",
-                                 {'input': inp_, 'gt': gt, 'pr': pr, 'peds': peds, 'frames': frames, 'dt': dt,
-                                  'dt_names': dt_names})
-
-        epoch+=1
-    ab=1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    scipy.io.savemat(f'models/gan/{args.name}/norm.mat',{'mean':mean.cpu().numpy(),'std':std.cpu().numpy()})
+
+    from gan import Generator, Critic, get_gradient, gradient_penalty, get_crit_loss, get_gen_loss
+    from tqdm import tqdm
+
+    c_lambda = 10
+    crit_repeats = 5
+
+    gen = Generator(args.obs-1, args.preds-1, args.point_dim, args.point_dim+1, args.point_dim+1, N=args.layers,
+                   d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
+    # gen_opt = torch.optim.Adam(gen.parameters())
+    gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
+                        torch.optim.Adam(gen.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    crit = Critic(args.point_dim, args.obs-1 + args.preds-1, N=args.layers, d_model=args.emb_size, d_ff=2048,
+                  h=args.heads, dropout=args.dropout, device=device).to(device)
+    # crit_opt = torch.optim.Adam(crit.parameters())
+    crit_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
+                        torch.optim.Adam(crit.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    if args.resume_train:
+        gen.load_state_dict(torch.load(f'models/gen/{args.name}/{args.gen_pth}'))
+        crit.load_state_dict(torch.load(f'models/crit/{args.name}/{args.crit_pth}'))
+
+
+    cur_step = -1
+    for epoch in range(args.max_epoch):
+        gen.train()
+        crit.train()
+        for id_b, batch in enumerate(tqdm(tr_dl, desc=f"Epoch {epoch}")):
+            cur_step += 1
+            src = (batch['src'][:,1:,-3:].to(device)-mean.to(device))/std.to(device)
+            tgt = (batch['trg'][:,:-1,-3:].to(device)-mean.to(device))/std.to(device)
+            batch_size = src.shape[0]
+
+            mean_iteration_critic_loss = 0
+            for _ in range(crit_repeats):
+                ### Update critic ###
+                crit_opt.optimizer.zero_grad()
+                fake_noise = gen.sample_noise(batch_size)
+                fake = gen(src, fake_noise)
+                fake_seq = torch.cat((src, fake.detach()[..., :-1]), dim=1)  # the :-1 is to ignore the start token dim
+                real_seq = torch.cat((src, tgt), dim=1)
+                crit_fake_pred = crit(fake_seq)
+                crit_real_pred = crit(real_seq)
+
+                crit_loss = get_crit_loss(crit, src, tgt, fake.detach()[..., :-1], crit_fake_pred, crit_real_pred, c_lambda)
+
+                mean_iteration_critic_loss += crit_loss.item() / crit_repeats
+                crit_loss.backward(retain_graph=True)
+                crit_opt.step()
+            log.add_scalar('Loss/train/crit', mean_iteration_critic_loss, cur_step)
+
+            ### Update generator ###
+            gen_opt.optimizer.zero_grad()
+            fake_noise_2 = gen.sample_noise(batch_size)
+            fake_2 = gen(src, fake_noise_2)
+            fake_2_seq = torch.cat((src, fake_2.detach()[..., :-1]), dim=1)
+            crit_fake_pred = crit(fake_2_seq)
+
+            gen_loss = get_gen_loss(crit_fake_pred, fake_2)
+            gen_loss.backward()
+            gen_opt.step()
+            log.add_scalar('Loss/train/gen', gen_loss.item(), cur_step)
+
+            if cur_step % args.save_step == 0:
+                torch.save(gen.state_dict(), f'models/gen/{args.name}/{cur_step:05}.pth')
+                torch.save(crit.state_dict(), f'models/crit/{args.name}/{cur_step:05}.pth')
+
+            if cur_step % args.visual_step== 0:
+                scipy.io.savemat(f"output/gan/{args.name}/step_{cur_step:05}.mat",
+                                 {'input': batch['src'][:, :, :3].detach().cpu().numpy(),
+                                  'gt': batch['trg'][:, :, :3].detach().cpu().numpy(),
+                                  'pr': (fake_2[:, 1:, :-1] * std.to(device) + mean.to(device)).cpu().numpy().cumsum(1)
+                                        + batch['src'][:, -1:, :].cpu().numpy()})
 
 if __name__=='__main__':
     main()
