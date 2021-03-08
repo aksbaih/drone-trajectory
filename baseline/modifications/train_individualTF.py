@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--warmup', type=int, default=10)
     parser.add_argument('--evaluate', type=bool, default=True)
     parser.add_argument('--model_pth', type=str)
+    parser.add_argument('--eval_every', type=int, default=1)
 
 
 
@@ -171,6 +172,16 @@ def main():
             epoch_loss += loss.item()
         #sched.step()
         log.add_scalar('Loss/train', epoch_loss / len(tr_dl), epoch)
+        if epoch%args.save_step==0:
+
+            torch.save(model.state_dict(),f'models/Individual/{args.name}/{epoch:05d}.pth')
+
+
+
+        epoch+=1
+        if epoch % args.eval_every != 0: continue
+        epoch-=1
+
         with torch.no_grad():
             model.eval()
 
@@ -202,10 +213,8 @@ def main():
                     out = model(inp, dec_inp, src_att, trg_att)
                     dec_inp = torch.cat((dec_inp, out[:, -1:, :]), 1)
 
-                preds_tr_b = (dec_inp[:, 1:, 0:3] * std.to(device) + mean.to(device)).cpu().numpy().cumsum(1) + batch[
-                                                                                                                    'src'][
-                                                                                                                :, -1:,
-                                                                                                                0:3].cpu().numpy()
+                preds_tr_b = (dec_inp[:, 1:, 0:3] * std.to(device) + mean.to(device)).cpu().numpy().cumsum(1) + \
+                             batch['src'][ :, -1:, 0:3].cpu().numpy()
                 pr.append(preds_tr_b)
                 print("val epoch %03i/%03i  batch %04i / %04i" % (
                     epoch, args.max_epoch, id_b, len(val_dl)))
@@ -262,6 +271,7 @@ def main():
                 frames = np.concatenate(frames, 0)
                 dt = np.concatenate(dt, 0)
                 gt = np.concatenate(gt, 0)
+                inp_ = np.concatenate(inp_, 0)
                 dt_names = test_dataset.data['dataset_name']
                 pr = np.concatenate(pr, 0)
                 mad, fad, errs = baselineUtils.distance_metrics(gt, pr)
@@ -275,14 +285,8 @@ def main():
                 # log.add_scalar('eval/DET_fad', fad, epoch)
 
                 scipy.io.savemat(f"output/Individual/{args.name}/det_{epoch}.mat",
-                                 {'input': inp, 'gt': gt, 'pr': pr, 'peds': peds, 'frames': frames, 'dt': dt,
+                                 {'input': inp_, 'gt': gt, 'pr': pr, 'peds': peds, 'frames': frames, 'dt': dt,
                                   'dt_names': dt_names})
-
-        if epoch%args.save_step==0:
-
-            torch.save(model.state_dict(),f'models/Individual/{args.name}/{epoch:05d}.pth')
-
-
 
         epoch+=1
     ab=1

@@ -45,7 +45,7 @@ def create_dataset(dataset_folder,dataset_name,val_size,gt,horizon,delim="\t",tr
             if verbose:
                 print("%03i / %03i - loading %s"%(i_dt+1,len(datasets_list),dt))
             raw_data = pd.read_csv(os.path.join(full_dt_folder, dt), delimiter=delim,
-                                            names=["frame", "ped", "x", "y"],usecols=[0,1,2,3],na_values="?")
+                                            names=["frame", "ped", "x", "y", "z"],usecols=[0,1,2,3,4],na_values="?")
 
             raw_data.sort_values(by=['frame','ped'], inplace=True)
 
