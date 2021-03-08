@@ -52,33 +52,14 @@ def main():
 
     args=parser.parse_args()
     model_name=args.name
-
-    try:
-        os.mkdir('models')
-    except:
-        pass
-    try:
-        os.mkdir('output')
-    except:
-        pass
-    try:
-        os.mkdir('output/gan')
-    except:
-        pass
-    try:
-        os.mkdir(f'models/gan')
-    except:
-        pass
-
-    try:
-        os.mkdir(f'output/gan/{args.name}')
-    except:
-        pass
-
-    try:
-        os.mkdir(f'models/gan/{args.name}')
-    except:
-        pass
+    def mkdir(path):
+        try:
+            os.mkdir(path)
+        except:
+            pass
+    paths = ['models', 'models/gen', 'models/crit', 'models/gan', f'models/gen/{args.name}', f'models/crit/{args.name}',
+             f'models/gan/{args.name}', 'output', 'output/gan', f'output/gan/{args.name}']
+    for path in paths: mkdir(path)
 
     log=SummaryWriter('logs/gan_%s'%model_name)
 
