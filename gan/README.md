@@ -16,3 +16,18 @@ You need to copy the modified files by running the command (this also copies the
 ```
 sh modifications/apply_modifications.sh
 ```
+
+## Training
+```
+CUDA_VISIBLE_DEVICES=0 python train_gan.py \
+    --dataset_folder ../../dataset \
+    --dataset_name data \
+    --name baseline \
+    --obs 12 --preds 8 \
+    --val_size 64 \
+    --max_epoch 360 \
+    --save_step 5 \
+    --eval_every 5 \
+    --batch_size 64
+```
+
