@@ -12,7 +12,7 @@ git submodule update
 ```
 
 ## Applying the modifications
-You need to copy the modified files by running the command
+You need to copy the modified files by running the command (this also copies the modifications in [the baseline](../baseline))
 ```
 sh modifications/apply_modifications.sh
 ```

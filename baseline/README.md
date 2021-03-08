@@ -46,3 +46,6 @@ sudo apt install ffmpeg
 cd vis
 ffmpeg -r 8 -f image2 -s 1080x1080 -i %04d.png -vcodec libx264 -crf 25  -pix_fmt yuv420p vis.mp4
 ```
+
+Here's a sample shot
+![Sample GIF](../report/vis-short.gif)
