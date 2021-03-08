@@ -1,3 +1,6 @@
 [submodule "baseline/Trajectory-Transformer"]
 	path = baseline/Trajectory-Transformer
 	url = https://github.com/FGiuliari/Trajectory-Transformer.git
+[submodule "gan/Trajectory-Transformer"]
+	path = gan/Trajectory-Transformer
+	url = https://github.com/FGiuliari/Trajectory-Transformer.git
