@@ -26,8 +26,10 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py \
     --obs 12 --preds 8 \
     --val_size 64 \
     --max_epoch 360 \
-    --save_step 5 \
-    --visual_step 5 \
+    --save_step 1 \
+    --visual_step 20 \
+    --grad_penality 1 \
+    --crit_repeats 2 \
     --batch_size 64
 ```
 

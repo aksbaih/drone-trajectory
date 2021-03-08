@@ -46,6 +46,8 @@ def main():
     parser.add_argument('--gen_pth', type=str)
     parser.add_argument('--crit_pth', type=str)
     parser.add_argument('--visual_step', type=int, default=10)
+    parser.add_argument('--grad_penality', type=float, default=10)
+    parser.add_argument('--crit_repeats', type=int, default=5)
 
 
 
@@ -124,8 +126,8 @@ def main():
     from gan import Generator, Critic, get_gradient, gradient_penalty, get_crit_loss, get_gen_loss
     from tqdm import tqdm
 
-    c_lambda = 10
-    crit_repeats = 5
+    c_lambda = args.grad_penality
+    crit_repeats = args.crit_repeats
 
     gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim+1, args.point_dim+1, N=args.layers,
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
