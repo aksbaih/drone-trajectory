@@ -127,12 +127,12 @@ def main():
     c_lambda = 10
     crit_repeats = 5
 
-    gen = Generator(args.obs-1, args.preds-1, args.point_dim, args.point_dim+1, args.point_dim+1, N=args.layers,
+    gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim+1, args.point_dim+1, N=args.layers,
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
     # gen_opt = torch.optim.Adam(gen.parameters())
     gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
                         torch.optim.Adam(gen.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-    crit = Critic(args.point_dim, args.obs-1 + args.preds-1, N=args.layers, d_model=args.emb_size, d_ff=2048,
+    crit = Critic(args.point_dim, args.obs-1 + args.preds, N=args.layers, d_model=args.emb_size, d_ff=2048,
                   h=args.heads, dropout=args.dropout, device=device).to(device)
     # crit_opt = torch.optim.Adam(crit.parameters())
     crit_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
@@ -149,7 +149,7 @@ def main():
         for id_b, batch in enumerate(tqdm(tr_dl, desc=f"Epoch {epoch}")):
             cur_step += 1
             src = (batch['src'][:,1:,-3:].to(device)-mean.to(device))/std.to(device)
-            tgt = (batch['trg'][:,:-1,-3:].to(device)-mean.to(device))/std.to(device)
+            tgt = (batch['trg'][:,:,-3:].to(device)-mean.to(device))/std.to(device)
             batch_size = src.shape[0]
 
             mean_iteration_critic_loss = 0
@@ -185,9 +185,9 @@ def main():
 
             if cur_step % args.visual_step== 0:
                 scipy.io.savemat(f"output/gan/{args.name}/step_{cur_step:05}.mat",
-                                 {'input': batch['src'][:, :, :3].detach().cpu().numpy(),
+                                 {'input': batch['src'][:, 1:, :3].detach().cpu().numpy(),
                                   'gt': batch['trg'][:, :, :3].detach().cpu().numpy(),
-                                  'pr': (fake_2[:, 1:, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
+                                  'pr': (fake_2[:, :, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
                                         + batch['src'][:, -1:, :3].cpu().numpy()})
 
         if cur_step % args.save_step == 0:
