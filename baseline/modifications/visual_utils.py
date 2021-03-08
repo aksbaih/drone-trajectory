@@ -16,14 +16,20 @@ def visualize(mat_file, out_dir, begin, end, increment, history_len):
     if not os.path.exists(out_dir): os.makedirs(out_dir)
     mat_file = io.loadmat(mat_file)
     gt, pr = mat_file['gt'][..., :2], mat_file['pr'][..., :2]  # ignore the z coordinate
-    history = gt[begin].reshape(-1, 2).copy().tolist()
+    if mat_file['input'] is not None and len(mat_file['input'].shape) > 1:
+        history = mat_file['input'][..., :2]
+        build_history = False
+    else:
+        history = gt[begin].reshape(-1, 2).copy().tolist()
+        build_history = True
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111)
     end = gt.shape[0] if end == -1 else end
     for i in tqdm(range(begin, end, increment)):
         ax.clear()
         # get correct slices
-        gt_i, pr_i, hs_i = gt[i].reshape(-1, 2).T, pr[i].reshape(-1, 2).T, np.array(history).T
+        gt_i, pr_i = gt[i].reshape(-1, 2).T, pr[i].reshape(-1, 2).T
+        hs_i = np.array(history).T if build_history else history[i].reshape(-1, 2).T
         # center them on current location
         zero = gt_i[:, 0:1].copy()
         gt_i -= zero
@@ -34,14 +40,15 @@ def visualize(mat_file, out_dir, begin, end, increment, history_len):
         ax.set_xlim([-max_dis, max_dis])
         ax.set_ylim([-max_dis, max_dis])
         # and plot them all
-        ax.plot(*gt_i, color='green', label='GT')
-        ax.plot(*pr_i, color='blue', label='Predicted')
-        ax.plot(*hs_i, color='brown', label='History')
+        ax.plot(*gt_i, fmt='D-.g', label='GT')
+        ax.plot(*pr_i, fmt='D-.b', label='Predicted')
+        ax.plot(*hs_i, color='D-.m', label='History')
         ax.set_title(f"{i:04}/{end:04}.png")
         ax.legend()
         # update history
-        history.append(zero.reshape(1, 2).tolist()[0])
-        history = history[-history_len:]
+        if build_history:
+            history.append(zero.reshape(1, 2).tolist()[0])
+            history = history[-history_len:]
         # save figure
         fig.savefig(os.path.join(out_dir, f"{i:04}.png"))
 
