@@ -36,7 +36,7 @@ def visualize(mat_file, out_dir, begin, end, increment, history_len):
         pr_i -= zero
         hs_i -= zero
         # contain them all on the same plot by finding the maximum distance from zero
-        max_dis = np.max([np.max(np.abs(gt_i)), np.max(np.abs(gt_i)), np.max(np.abs(hs_i))]) * 0.7
+        max_dis = np.max([np.max(np.abs(gt_i)), np.max(np.abs(pr_i)), np.max(np.abs(hs_i))]) * 1.
         ax.set_xlim([-max_dis, max_dis])
         ax.set_ylim([-max_dis, max_dis])
         # and plot them all
