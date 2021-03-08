@@ -190,7 +190,7 @@ def main():
                 scipy.io.savemat(f"output/gan/{args.name}/step_{cur_step:05}.mat",
                                  {'input': batch['src'][:, :, :3].detach().cpu().numpy(),
                                   'gt': batch['trg'][:, :, :3].detach().cpu().numpy(),
-                                  'pr': (fake_2[:, 1:, :-1] * std.to(device) + mean.to(device)).cpu().numpy().cumsum(1)
+                                  'pr': (fake_2[:, 1:, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
                                         + batch['src'][:, -1:, :].cpu().numpy()})
 
 if __name__=='__main__':
