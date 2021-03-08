@@ -62,21 +62,21 @@ def main():
     except:
         pass
     try:
-        os.mkdir('output/Individual')
+        os.mkdir('output/gan')
     except:
         pass
     try:
-        os.mkdir(f'models/Individual')
-    except:
-        pass
-
-    try:
-        os.mkdir(f'output/Individual/{args.name}')
+        os.mkdir(f'models/gan')
     except:
         pass
 
     try:
-        os.mkdir(f'models/Individual/{args.name}')
+        os.mkdir(f'output/gan/{args.name}')
+    except:
+        pass
+
+    try:
+        os.mkdir(f'models/gan/{args.name}')
     except:
         pass
 
