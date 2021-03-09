@@ -83,8 +83,9 @@ I'm using 64 frames from each flight for validation, making around 9\% (1k frame
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.9\textwidth]{gen-disc-figure.pdf}\\
-    \caption{The proposed GAN architecture.  The circle represents the temporal embedding for each timestep as proposed in \cite{giuliari2020transformer}}
+    \includegraphics[width=0.45\textwidth]{gen-disc-figure.pdf}
+    \includegraphics[width=0.45\textwidth]{gen-disc-parallel-figure.pdf}\\
+    \caption{The proposed GAN architecture.  The circle represents the temporal embedding for each timestep as proposed in \cite{giuliari2020transformer}}. Left is the original proposal, Right is the new parallelized one.
     \label{gen_disc_figure}
 \end{figure}
 
@@ -95,18 +96,55 @@ I'm using 64 frames from each flight for validation, making around 9\% (1k frame
 
 \section{Experiments and Results}
 \paragraph{The Baseline}$ $
-\\I trained the simple transformer baseline using the same implementation linked in \cite{giuliari2020transformer} with the training dataset for 64 epochs in 45 minutes on a Tesla K80. The batch size was 150 and the number of validation frames was 64 per flight (as described in the dataset section of this report).  I also requested that the model be evaluated on the test set on every epoch for more insight given the small size of the validation set and ended up with both evaluations yielding almost identical curves with better results on the test set.  Figure \ref{baseline_train_loss} shows the results. 
+\\I trained the simple transformer baseline using the same implementation linked in \cite{giuliari2020transformer} with the training dataset for 130 epochs in 30 minutes on a Tesla K80. The batch size was 64 and the number of validation frames was 64 per flight (as described in the dataset section of this report).  I also requested that the model be evaluated on the test set on every epoch for more insight given the small size of the validation set and ended up with both evaluations yielding almost identical curves with better results on the test set.  Figure \ref{baseline_train_loss} shows the results and a few visualized samples. 
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.45\textwidth]{loss_train_baseline.pdf}
-     \includegraphics[width=0.45\textwidth]{test_mad_train_baseline}\\
-    \caption{The x axis is the epoch. The left chart is the average loss per epoch. The right chart is the MAD on the test set at each epoch.}
+    \includegraphics[width=0.45\textwidth]{loss_train_baseline_long.pdf}
+     \includegraphics[width=0.45\textwidth]{test_mad_train_baseline_long}\\
+    \includegraphics[width=0.3\textwidth]{baseline0}
+    \includegraphics[width=0.3\textwidth]{baseline1}
+    \includegraphics[width=0.3\textwidth]{baseline2}\\
+    \caption{The x axis is the epoch. The left chart is the average loss per epoch. The right chart is the MAD on the test set at each epoch. On the second row are example outputs: brown is the input, green is the gound truth, and blue is the prediction.}
     \label{baseline_train_loss}
 \end{figure}
 
+\paragraph{GAN-Based}$ $
+I implemented GAN-based model I proposed shown in Figure \ref{gen_disc_figure} (left) and trained it on the same dataset using Wasserstein Loss \cite{wloss} with multiple values of gradient penalty and critic repetitions. The training curves are shown in Figure \ref{sequential_training_loss}. Training took longer than for the baseline because of the sequential unfolding of the generator's decoder (coming from the assumption that we don't have ground truth for the generation task).  This sequential nature also led to vanishing gradient for the generator where it didn't learn past the random weights it was initialized on, leading to mode collapse in the generations. Some examples are shown in Figure \ref{sample_mode_collapse}.
+
+\paragraph{Analysis}$ $
+Looking at the loss curves in Figure \ref{sequential_training_loss}, we find two things:
+\begin{itemize}
+\item Higher Gradient Penality allows the generator to learn more by slowing down the critic as the Cyan and Magenta curves are flipped for the Critic and Generator.
+\item Smaller trajectory window (unfolds of the generator) lead to better training and smaller loss for the generator.  This is probably due to the vanishing gradient happening during the unfolding process for long sequences.
+\end{itemize}
+This leads to the conclusion that I should get rid of the sequential unfolding in the generator and to incorporate the injected noise better into the generator. Therefore I propose another approach shown in figure \ref{gen_disc_figure} (Right) where there's no sequential unfolding. Instead, random states are fed into the decoder, in addition to the states attained through the encoder. This should be enough information for the decoder to make a trajectory and should provide more variations since more randomness is fed into the model.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.45\textwidth]{Loss_train_crit_collapse}
+     \includegraphics[width=0.45\textwidth]{Loss_train_gen_collapse}\\
+    \caption{W-Loss curves for Critic on the left and Generator on the right with batch on the horizontal axis. \textbf{Cyan} is \textbf{G}radient \textbf{P}enality of 10 and \textbf{W}indow of 8; \textbf{Magenta} is \textbf{GP} of 100 and \textbf{W} of 8; \textbf{Grey} is \textbf{GP} of 10 and \textbf{W} of 2; \textbf{Orange} is \textbf{GP} of 10 and \textbf{W} of 1 }
+    \label{sample_mode_collapse}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.3\textwidth]{mode_collapse0}
+    \includegraphics[width=0.3\textwidth]{mode_collapse1}
+    \includegraphics[width=0.3\textwidth]{mode_collapse2}\\
+    \caption{A few samples generated by the generator during training. Magenta is the condition input sequence, Green is the real trajectory, and Blue is the generated trajectory. Notice how similar all the blue trajectories are for various conditions.}
+    \label{sequential_training_loss}
+\end{figure}
+
 \section{Moving Forward}
-After running the baseline, I'm ready to start implementing my changes to convert the model into the GAN I proposed. After that, I will train it and run the same metrics discussed in the evaluation section.  I can then compare their results and derive my conclusions on how well and diverse the GAN-based model generates. 
+After evaluating the original proposed method, I will implement the new method and evaluate it in a similar way. I will measure the fidelity and variaty of the generations using the metrics I proposed earlier. After that, I would like to try the following risky experiments:
+\paragraph{Risky Experiments}$ $
+\begin{itemize}
+\item Request a longer prediction horizons and use that to measure how over-fit the model could be. Because the past trajectory of an object doesn't necessarily contain enough information about the future, if the model gets good results, it means that it's leaking information from the training set.
+\item Set all the input states as random values and see how well the model performs on that. Good accuracy on that implies that the model doesn't depend heavily on the input but instead gives a general prediction regarless of the condition. 
+\item Preprocess the coordinates of a drone during flight as seen from another drone during a concurrent flight (this doesn't exist in the dataset but we can assume that two flight recordings were happening at the same time and with the same coordinate reference/calibration). This will show us if the model actually generalizes to do the task when it's on a moving drone in a race rather than on a stationery sensor.
+\end{itemize}
 
 
 
