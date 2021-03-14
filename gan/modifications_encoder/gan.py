@@ -31,13 +31,11 @@ class Generator(nn.Module):
         attn = MultiHeadAttention(h, d_model)
         ff = PointerwiseFeedforward(d_model, d_ff, dropout)
         position = PositionalEncoding(d_model, dropout)
-        self.generator = EncoderDecoder(
-            Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-            Decoder(DecoderLayer(d_model, c(attn), c(attn),
-                                 c(ff), dropout), N),
-            nn.Sequential(LinearEmbedding(enc_inp_size,d_model), c(position)),
-            nn.Sequential(LinearEmbedding(dec_inp_size,d_model), c(position)),
-            TFHeadGenerator(d_model, dec_out_size))
+        self.generator = nn.ModuleDict({
+            'src_embed': nn.Sequential(LinearEmbedding(enc_inp_size, d_model), c(position)),
+            'encoder': Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
+            'tgt_embed': nn.Sequential(nn.Linear(d_model, dec_out_size)),
+        })
 
         # This was important from their code.
         # Initialize parameters with Glorot / fan_avg.
@@ -57,12 +55,10 @@ class Generator(nn.Module):
         """
         batch_size = src.shape[0]
         src_mask = torch.ones((batch_size, 1, self.src_len)).to(self.device)
-        dec_inp = noise
-
-        tgt_mask = subsequent_mask(dec_inp.shape[1]).repeat(batch_size, 1, 1).to(self.device)
-        out = self.generator.generator(self.generator(src, dec_inp, src_mask, tgt_mask))
-
-        return out
+        enc_inp = src
+        return self.critic['tgt_embed'](
+                self.critic['encoder'](
+                    self.critic['src_embed'](enc_inp), src_mask))[:, -self.tgt_len:, :]
 
 class Critic(nn.Module):
     def __init__(self, disc_inp_size, disc_seq_len, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1, device='cpu'):
