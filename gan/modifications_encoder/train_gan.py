@@ -192,7 +192,7 @@ def main():
                                   'pr': (fake_2[:, :, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
                                         + batch['src'][:, -1:, :3].cpu().numpy()})
 
-        if cur_step % args.save_step == 0:
+        if epoch % args.save_step == 0:
             torch.save(gen.state_dict(), f'models/gen/{args.name}/{cur_step:05}.pth')
             torch.save(crit.state_dict(), f'models/crit/{args.name}/{cur_step:05}.pth')
 
