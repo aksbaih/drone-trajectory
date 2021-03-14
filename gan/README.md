@@ -18,6 +18,8 @@ You need to copy the modified files by running the command (this also copies the
 sh modifications_seq/apply_modifications.sh
 # Or for parallel transformer (second approach)
 sh modifications_paral/apply_modifications.sh
+# Or for encoder only transformer (third approach)
+sh modifications_encoder/apply_modifications.sh
 ```
 
 ## Training
@@ -26,7 +28,7 @@ You can start training by running the following command with arguments explained
 CUDA_VISIBLE_DEVICES=0 python train_gan.py \
     --dataset_folder ../../dataset \
     --dataset_name data \
-    --name mygan \
+    --name pgan \
     --obs 12 --preds 8 \
     --val_size 64 \
     --max_epoch 360 \
@@ -46,7 +48,7 @@ You can also visualize the saved generations during training by running
 ```
 cd Trajectory-Transformer
 python visual_utils.py \
-    --mat_file output/gan/mygan/step_0148.mat \
+    --mat_file output/gan/mygan/step_00380.mat \
     --out_dir vis \
     --begin 0 \
     --end -1 \
