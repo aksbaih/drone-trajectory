@@ -17,58 +17,6 @@ import os
 import copy
 import math
 
-# class GAN(nn.Module):
-#     def __init__(self, enc_inp_size, dec_inp_size, dec_out_size, disc_inp_size, N=6,
-#                    d_model=512, d_ff=2048, h=8, dropout=0.1,mean=[0,0],std=[0,0]):
-#         super(GAN, self).__init__()
-#         "Helper: Construct a model from hyperparameters."
-#         c = copy.deepcopy
-#         attn = MultiHeadAttention(h, d_model)
-#         ff = PointerwiseFeedforward(d_model, d_ff, dropout)
-#         position = PositionalEncoding(d_model, dropout)
-#         self.mean=np.array(mean)
-#         self.std=np.array(std)
-#         self.generator = EncoderDecoder(
-#             Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-#             Decoder(DecoderLayer(d_model, c(attn), c(attn),
-#                                  c(ff), dropout), N),
-#             nn.Sequential(LinearEmbedding(enc_inp_size,d_model), c(position)),
-#             nn.Sequential(LinearEmbedding(dec_inp_size,d_model), c(position)),
-#             TFHeadGenerator(d_model, dec_out_size))
-#
-#         self.discriminator = nn.ModuleDict({
-#             'src_embed': nn.Sequential(LinearEmbedding(disc_inp_size,d_model), c(position)),
-#             'encoder': Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-#             'disc_head': nn.Linear(d_model, 1),
-#         })
-#
-#         self.criterion = nn.BCEWithLogitsLoss()
-#
-#         self.dec_inp_size = dec_inp_size
-#
-#         # This was important from their code.
-#         # Initialize parameters with Glorot / fan_avg.
-#         for p in self.generator.parameters():
-#             if p.dim() > 1:
-#                 nn.init.xavier_uniform_(p)
-#         for p in self.discriminator.parameters():
-#             if p.dim() > 1:
-#                 nn.init.xavier_uniform_(p)
-#
-#
-#
-#
-#
-#
-#
-#     def forward(self, src, tgt, src_mask, tgt_mask):
-#         generation = self.generate(src, tgt.shape[1])
-#         real_logits, fake_logits = self.discriminator(tgt), self.discriminator(generation)
-#         generator_loss = self.criterion(fake_logits, torch.ones_like(fake_logits))
-#         discriminator_loss = self.criterion(fake_logits, torch.zeros_like(fake_logits)) / 2. + \
-#                              self.criterion(real_logits, torch.ones_like(real_logits)) / 2.
-#         return gene
-
 
 class Generator(nn.Module):
     def __init__(self, src_len, tgt_len, enc_inp_size, dec_inp_size, dec_out_size, N=6,
@@ -98,9 +46,9 @@ class Generator(nn.Module):
                 nn.init.xavier_uniform_(p)
 
     def sample_noise(self, batch_size):
-        noise = torch.randn(batch_size, self.dec_inp_size, device=self.device)
-        noise[:, -1] = 1.  # Distinguish start-of-sequence token
-        return noise.unsqueeze(1)
+        noise = torch.randn(batch_size, self.tgt_len, self.dec_inp_size, device=self.device)
+        noise[:, 0, -1] = 1.  # Distinguish start-of-sequence token
+        return noise
 
     def forward(self, src, noise):
         """
@@ -111,13 +59,10 @@ class Generator(nn.Module):
         src_mask = torch.ones((batch_size, 1, self.src_len)).to(self.device)
         dec_inp = noise
 
-        # Now generate step by step
-        for i in range(self.tgt_len):
-            tgt_mask = subsequent_mask(dec_inp.shape[1]).repeat(batch_size, 1, 1).to(self.device)
-            out = self.generator.generator(self.generator(src, dec_inp, src_mask, tgt_mask))
-            dec_inp = torch.cat((dec_inp, out[:, -1:, :]), 1)
+        tgt_mask = subsequent_mask(dec_inp.shape[1]).repeat(batch_size, 1, 1).to(self.device)
+        out = self.generator.generator(self.generator(src, dec_inp, src_mask, tgt_mask))
 
-        return dec_inp[:, 1:, :]  # skip the start of sequence
+        return out
 
 class Critic(nn.Module):
     def __init__(self, disc_inp_size, disc_seq_len, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1, device='cpu'):
