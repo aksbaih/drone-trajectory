@@ -14,11 +14,14 @@ git submodule update
 ## Applying the modifications
 You need to copy the modified files by running the command (this also copies the modifications in [the baseline](../baseline))
 ```
-sh modifications/apply_modifications.sh
+# For sequential transformer (first approach)
+sh modifications_seq/apply_modifications.sh
+# Or for parallel transformer (second approach)
+sh modifications_paral/apply_modifications.sh
 ```
 
 ## Training
-You can start training by running the following command with arguments explained in [train_gan.py](modifications/train_gan.py)
+You can start training by running the following command with arguments explained in [train_gan.py](modifications_seq/train_gan.py)
 ```
 CUDA_VISIBLE_DEVICES=0 python train_gan.py \
     --dataset_folder ../../dataset \
