@@ -56,9 +56,9 @@ class Generator(nn.Module):
         batch_size = src.shape[0]
         src_mask = torch.ones((batch_size, 1, self.src_len)).to(self.device)
         enc_inp = src
-        return self.critic['tgt_embed'](
-                self.critic['encoder'](
-                    self.critic['src_embed'](enc_inp), src_mask))[:, -self.tgt_len:, :]
+        return self.generator['tgt_embed'](
+                self.generator['encoder'](
+                    self.generator['src_embed'](enc_inp), src_mask))[:, -self.tgt_len:, :]
 
 class Critic(nn.Module):
     def __init__(self, disc_inp_size, disc_seq_len, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1, device='cpu'):
