@@ -5,6 +5,7 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 import os
+import random
 import time
 from transformer.batch import subsequent_mask
 from torch.optim import Adam,SGD, RMSprop, Adagrad
@@ -16,6 +17,13 @@ import pickle
 
 from torch.utils.tensorboard import SummaryWriter
 
+seed = 314
+os.environ['PYTHONHASHSEED'] = str(seed)
+random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+np.random.seed(seed)
+torch.backends.cudnn.deterministic = True
 
 
 
@@ -49,6 +57,7 @@ def main():
     parser.add_argument('--grad_penality', type=float, default=10)
     parser.add_argument('--crit_repeats', type=int, default=5)
     parser.add_argument('--lambda_recon', type=float, default=0.1)
+    parser.add_argument('--z_dim', type=int, default=3)
 
 
 
@@ -130,7 +139,7 @@ def main():
     c_lambda = args.grad_penality
     crit_repeats = args.crit_repeats
 
-    gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim, args.point_dim, N=args.layers,
+    gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim, args.point_dim, z_dim=args.z_dim, N=args.layers,
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
     # gen_opt = torch.optim.Adam(gen.parameters())
     gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,

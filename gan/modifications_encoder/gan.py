@@ -19,20 +19,21 @@ import math
 
 
 class Generator(nn.Module):
-    def __init__(self, src_len, tgt_len, enc_inp_size, dec_inp_size, dec_out_size, N=6,
+    def __init__(self, src_len, tgt_len, enc_inp_size, dec_inp_size, dec_out_size, z_dim, N=6,
                    d_model=512, d_ff=2048, h=8, dropout=0.1, device='cpu'):
         super(Generator, self).__init__()
         self.device = device
         self.src_len = src_len
         self.tgt_len = tgt_len
         self.dec_inp_size = dec_inp_size
+        self.z_dim = z_dim
 
         c = copy.deepcopy
         attn = MultiHeadAttention(h, d_model)
         ff = PointerwiseFeedforward(d_model, d_ff, dropout)
         position = PositionalEncoding(d_model, dropout)
         self.generator = nn.ModuleDict({
-            'src_embed': nn.Sequential(LinearEmbedding(enc_inp_size, d_model), c(position)),
+            'src_embed': nn.Sequential(LinearEmbedding(enc_inp_size + z_dim, d_model), c(position)),
             'encoder': Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
             'tgt_embed': nn.Sequential(nn.Linear(d_model, dec_out_size)),
         })
@@ -44,7 +45,7 @@ class Generator(nn.Module):
                 nn.init.xavier_uniform_(p)
 
     def sample_noise(self, batch_size):
-        noise = torch.randn(batch_size, self.tgt_len, self.dec_inp_size, device=self.device)
+        noise = torch.randn(batch_size, self.tgt_len, self.z_dim, device=self.device)
         # noise[:, 0, -1] = 1.  # Distinguish start-of-sequence token
         return noise
 
@@ -55,7 +56,7 @@ class Generator(nn.Module):
         """
         batch_size = src.shape[0]
         src_mask = torch.ones((batch_size, 1, self.src_len)).to(self.device)
-        enc_inp = src
+        enc_inp = torch.cat((src, noise), dim=-1)
         return self.generator['tgt_embed'](
                 self.generator['encoder'](
                     self.generator['src_embed'](enc_inp), src_mask))[:, -self.tgt_len:, :]
