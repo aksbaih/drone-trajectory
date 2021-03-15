@@ -41,13 +41,14 @@ def main():
     parser.add_argument('--name', type=str, default="zara1")
     parser.add_argument('--factor', type=float, default=1.)
     parser.add_argument('--save_step', type=int, default=1)
-    parser.add_argument('--warmup', type=int, default=10)
+    parser.add_argument('--warmup', type=int, default=2)
     parser.add_argument('--evaluate', type=bool, default=True)
     parser.add_argument('--gen_pth', type=str)
     parser.add_argument('--crit_pth', type=str)
     parser.add_argument('--visual_step', type=int, default=10)
     parser.add_argument('--grad_penality', type=float, default=10)
     parser.add_argument('--crit_repeats', type=int, default=5)
+    parser.add_argument('--lambda_recon', type=float, default=0.1)
 
 
 
@@ -129,7 +130,7 @@ def main():
     c_lambda = args.grad_penality
     crit_repeats = args.crit_repeats
 
-    gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim+1, args.point_dim+1, N=args.layers,
+    gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim, args.point_dim, N=args.layers,
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
     # gen_opt = torch.optim.Adam(gen.parameters())
     gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
@@ -160,12 +161,12 @@ def main():
                 crit_opt.optimizer.zero_grad()
                 fake_noise = gen.sample_noise(batch_size)
                 fake = gen(src, fake_noise)
-                fake_seq = torch.cat((src, fake.detach()[..., :-1]), dim=1)  # the :-1 is to ignore the start token dim
+                fake_seq = torch.cat((src, fake.detach()), dim=1)
                 real_seq = torch.cat((src, tgt), dim=1)
                 crit_fake_pred = crit(fake_seq)
                 crit_real_pred = crit(real_seq)
 
-                crit_loss = get_crit_loss(crit, src, tgt, fake.detach()[..., :-1], crit_fake_pred, crit_real_pred, c_lambda)
+                crit_loss = get_crit_loss(crit, src, tgt, fake.detach(), crit_fake_pred, crit_real_pred, c_lambda)
 
                 mean_iteration_critic_loss += crit_loss.item() / crit_repeats
                 crit_loss.backward(retain_graph=True)
@@ -176,10 +177,10 @@ def main():
             gen_opt.optimizer.zero_grad()
             fake_noise_2 = gen.sample_noise(batch_size)
             fake_2 = gen(src, fake_noise_2)
-            fake_2_seq = torch.cat((src, fake_2.detach()[..., :-1]), dim=1)
+            fake_2_seq = torch.cat((src, fake_2.detach()), dim=1)
             crit_fake_pred = crit(fake_2_seq)
 
-            gen_loss = get_gen_loss(crit_fake_pred, fake_2)
+            gen_loss = get_gen_loss(crit_fake_pred, fake_2, tgt, args.lambda_recon)
             gen_loss.backward()
             gen_opt.step()
             log.add_scalar('Loss/train/gen', gen_loss.item(), cur_step)
@@ -189,7 +190,7 @@ def main():
                 scipy.io.savemat(f"output/gan/{args.name}/step_{cur_step:05}.mat",
                                  {'input': batch['src'][:, 1:, :3].detach().cpu().numpy(),
                                   'gt': batch['trg'][:, :, :3].detach().cpu().numpy(),
-                                  'pr': (fake_2[:, :, :-1] * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
+                                  'pr': (fake_2 * std.to(device) + mean.to(device)).detach().cpu().numpy().cumsum(1)
                                         + batch['src'][:, -1:, :3].cpu().numpy()})
 
         if epoch % args.save_step == 0:

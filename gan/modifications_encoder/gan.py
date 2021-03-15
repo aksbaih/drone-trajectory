@@ -45,7 +45,7 @@ class Generator(nn.Module):
 
     def sample_noise(self, batch_size):
         noise = torch.randn(batch_size, self.tgt_len, self.dec_inp_size, device=self.device)
-        noise[:, 0, -1] = 1.  # Distinguish start-of-sequence token
+        # noise[:, 0, -1] = 1.  # Distinguish start-of-sequence token
         return noise
 
     def forward(self, src, noise):
@@ -73,7 +73,7 @@ class Critic(nn.Module):
         self.critic = nn.ModuleDict({
             'src_embed': nn.Sequential(LinearEmbedding(disc_inp_size, d_model), c(position)),
             'encoder': Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-            'disc_head': nn.Sequential(nn.Flatten(), nn.Linear(d_model * disc_seq_len, 1)),
+            'disc_head': nn.Sequential(nn.Flatten(), nn.Linear(d_model, 1)),
         })
 
         for p in self.critic.parameters():
@@ -87,7 +87,7 @@ class Critic(nn.Module):
         mask = torch.ones((seq.shape[0], 1, seq.shape[1])).to(self.device)
         return self.critic['disc_head'](
                 self.critic['encoder'](
-                    self.critic['src_embed'](seq), mask))
+                    self.critic['src_embed'](seq), mask)[:, -1, :])
 
 class LinearEmbedding(nn.Module):
     def __init__(self, inp_size,d_model):
@@ -130,9 +130,10 @@ def get_gradient(crit, src, real, fake, epsilon):
     )[0]
     return gradient
 
-def get_gen_loss(crit_fake_pred, generations):
+def get_gen_loss(crit_fake_pred, generations, reals, lambda_recon):
     gen_loss = -crit_fake_pred.mean()
-    gen_loss += generations[..., -1].pow(2).sum()  # we want it to be 0 for any state other than the noise
+    # gen_loss += generations[..., -1].pow(2).sum()  # we want it to be 0 for any state other than the noise
+    gen_loss += lambda_recon * torch.norm(generations - reals)
     return gen_loss
 
 def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambda):
