@@ -42,7 +42,7 @@ class Generator(nn.Module):
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
                                                              dropout=dropout, activation='gelu'),
-                                  num_layers=N, norm=nn.LayerNorm(d_model)),
+                                  num_layers=N),
             nn.Linear(d_model, dec_out_size),
         )
 
