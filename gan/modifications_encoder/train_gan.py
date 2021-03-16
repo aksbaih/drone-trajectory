@@ -58,6 +58,7 @@ def main():
     parser.add_argument('--crit_repeats', type=int, default=5)
     parser.add_argument('--lambda_recon', type=float, default=0.1)
     parser.add_argument('--z_dim', type=int, default=3)
+    parser.add_argument('--stop_recon', type=int, default=2)
 
 
 
@@ -189,7 +190,7 @@ def main():
             fake_2_seq = torch.cat((src, fake_2.detach()), dim=1)
             crit_fake_pred = crit(fake_2_seq)
 
-            gen_loss = get_gen_loss(crit_fake_pred, fake_2, tgt, args.lambda_recon)
+            gen_loss = get_gen_loss(crit_fake_pred, fake_2, tgt, args.lambda_recon if epoch < args.stop_recon else 0.)
             gen_loss.backward()
             gen_opt.step()
             log.add_scalar('Loss/train/gen', gen_loss.item(), cur_step)
