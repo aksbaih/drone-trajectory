@@ -103,7 +103,7 @@ def get_gradient(crit, src, real, fake, epsilon):
 def get_gen_loss(crit_fake_pred, generations, reals, lambda_recon):
     gen_loss = -crit_fake_pred.mean()
     # gen_loss += generations[..., -1].pow(2).sum()  # we want it to be 0 for any state other than the noise
-    gen_loss += lambda_recon * torch.pow(generations - reals, 2).sum()
+    gen_loss += lambda_recon * torch.pow(generations - reals, 2).mean()
     return gen_loss
 
 def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambda, lambda_recon):
