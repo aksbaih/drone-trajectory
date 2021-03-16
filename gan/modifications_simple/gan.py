@@ -38,7 +38,7 @@ class Generator(nn.Module):
         #     'tgt_embed': nn.Sequential(nn.Linear(d_model, dec_out_size)),
         # })
         self.gen = nn.Sequential(
-            nn.Linear(enc_inp_size, d_model),
+            nn.Linear(enc_inp_size + z_dim, d_model),
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
                                                              dropout=dropout, activation='gelu'), num_layers=N),
