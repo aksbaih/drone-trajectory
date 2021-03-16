@@ -42,7 +42,7 @@ class Generator(nn.Module):
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
                                                              dropout=dropout, activation='gelu'),
-                                  num_layers=N, norm=nn.LayerNorm),
+                                  num_layers=N, norm=nn.LayerNorm(d_model)),
             nn.Linear(d_model, dec_out_size),
         )
 
@@ -90,7 +90,7 @@ class Critic(nn.Module):
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
                                                              dropout=dropout, activation='gelu'),
-                                  num_layers=N, norm=nn.LayerNorm),
+                                  num_layers=N, norm=nn.LayerNorm(d_model)),
             nn.Flatten(),
             nn.Linear(d_model * disc_seq_len, 1)
         )
