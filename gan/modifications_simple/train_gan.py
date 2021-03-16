@@ -76,8 +76,6 @@ def main():
 
     log=SummaryWriter('logs/gan_%s'%model_name)
 
-    log.add_scalar('eval/mad', 0, 0)
-    log.add_scalar('eval/fad', 0, 0)
     device=torch.device("cuda")
 
     if args.cpu or not torch.cuda.is_available():
