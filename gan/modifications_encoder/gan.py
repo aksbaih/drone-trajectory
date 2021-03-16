@@ -45,7 +45,7 @@ class Generator(nn.Module):
                 nn.init.xavier_uniform_(p)
 
     def sample_noise(self, batch_size):
-        noise = torch.randn(batch_size, self.tgt_len, self.z_dim, device=self.device)
+        noise = torch.randn(batch_size, self.src_len, self.z_dim, device=self.device)
         # noise[:, 0, -1] = 1.  # Distinguish start-of-sequence token
         return noise
 
