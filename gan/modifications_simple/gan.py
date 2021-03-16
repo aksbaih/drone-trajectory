@@ -51,7 +51,7 @@ class Critic(nn.Module):
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
                                                              dropout=dropout, activation='gelu'),
-                                  num_layers=N, norm=nn.LayerNorm(d_model)),
+                                  num_layers=N, norm=nn.LayerNorm([disc_seq_len, d_model])),
             nn.Flatten(),
             nn.Linear(d_model * disc_seq_len, 1)
         )
@@ -116,3 +116,6 @@ def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambd
     gp = gradient_penalty(gradient)
     crit_loss = -crit_real_pred.mean() + crit_fake_pred.mean() + gp * c_lambda
     return crit_loss
+
+#
+# CUDA_VISIBLE_DEVICES=0 python train_gan.py     --dataset_folder ../../dataset     --dataset_name data     --name simple_long --stop_recon 24 --z_dim 3     --obs 12 --preds 8     --val_size 64     --max_epoch 36000     --save_step 1     --visual_step 30     --grad_penality 10  --lambda_recon 0.01   --crit_repeats 4    --batch_size 128
