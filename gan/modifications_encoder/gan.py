@@ -134,10 +134,10 @@ def get_gradient(crit, src, real, fake, epsilon):
 def get_gen_loss(crit_fake_pred, generations, reals, lambda_recon):
     gen_loss = -crit_fake_pred.mean()
     # gen_loss += generations[..., -1].pow(2).sum()  # we want it to be 0 for any state other than the noise
-    gen_loss += lambda_recon * torch.pow(generations - reals, 2).sum()
+    # gen_loss += lambda_recon * torch.pow(generations - reals, 2).sum()
     return gen_loss
 
-def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambda):
+def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambda, lambda_recon):
     """
     Returns the W-Loss
     """
@@ -146,4 +146,5 @@ def get_crit_loss(crit, src, real, fake, crit_fake_pred, crit_real_pred, c_lambd
     gradient = get_gradient(crit, src, real, fake, epsilon)
     gp = gradient_penalty(gradient)
     crit_loss = -crit_real_pred.mean() + crit_fake_pred.mean() + gp * c_lambda
+    crit_loss += lambda_recon * torch.pow(fake - real, 2).sum()
     return crit_loss

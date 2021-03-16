@@ -176,7 +176,8 @@ def main():
                 crit_fake_pred = crit(fake_seq)
                 crit_real_pred = crit(real_seq)
 
-                crit_loss = get_crit_loss(crit, src, tgt, fake.detach(), crit_fake_pred, crit_real_pred, c_lambda)
+                crit_loss = get_crit_loss(crit, src, tgt, fake.detach(), crit_fake_pred, crit_real_pred, c_lambda,
+                                          args.lambda_recon if epoch < args.stop_recon else 0.)
 
                 mean_iteration_critic_loss += crit_loss.item() / crit_repeats
                 crit_loss.backward(retain_graph=True)
