@@ -142,14 +142,14 @@ def main():
 
     gen = Generator(args.obs-1, args.preds, args.point_dim, args.point_dim, args.point_dim, z_dim=args.z_dim, N=args.layers,
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout, device=device).to(device)
-    # gen_opt = torch.optim.Adam(gen.parameters())
-    gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
-                        torch.optim.Adam(gen.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    gen_opt = torch.optim.Adam(gen.parameters())
+    # gen_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
+    #                     torch.optim.Adam(gen.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
     crit = Critic(args.point_dim, args.obs-1 + args.preds, N=args.layers, d_model=args.emb_size, d_ff=2048,
                   h=args.heads, dropout=args.dropout, device=device).to(device)
-    # crit_opt = torch.optim.Adam(crit.parameters())
-    crit_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
-                        torch.optim.Adam(crit.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    crit_opt = torch.optim.Adam(crit.parameters())
+    # crit_opt = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
+    #                     torch.optim.Adam(crit.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
     if args.resume_train:
         gen.load_state_dict(torch.load(f'models/gen/{args.name}/{args.gen_pth}'))
         crit.load_state_dict(torch.load(f'models/crit/{args.name}/{args.crit_pth}'))
@@ -168,7 +168,7 @@ def main():
             mean_iteration_critic_loss = 0
             for _ in range(crit_repeats):
                 ### Update critic ###
-                crit_opt.optimizer.zero_grad()
+                crit_opt.zero_grad()
                 fake_noise = gen.sample_noise(batch_size)
                 fake = gen(src, fake_noise)
                 fake_seq = torch.cat((src, fake.detach()), dim=1)
@@ -185,7 +185,7 @@ def main():
             log.add_scalar('Loss/train/crit', mean_iteration_critic_loss, cur_step)
 
             ### Update generator ###
-            gen_opt.optimizer.zero_grad()
+            gen_opt.zero_grad()
             fake_noise_2 = gen.sample_noise(batch_size)
             fake_2 = gen(src, fake_noise_2)
             fake_2_seq = torch.cat((src, fake_2.detach()), dim=1)
