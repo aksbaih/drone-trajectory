@@ -188,7 +188,7 @@ def main():
             gen_opt.zero_grad()
             fake_noise_2 = gen.sample_noise(batch_size)
             fake_2 = gen(src, fake_noise_2)
-            fake_2_seq = torch.cat((src, fake_2.detach()), dim=1)
+            fake_2_seq = torch.cat((src, fake_2), dim=1)
             crit_fake_pred = crit(fake_2_seq)
 
             gen_loss = get_gen_loss(crit_fake_pred, fake_2, tgt, args.lambda_recon if epoch < args.stop_recon else 0.)
