@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformer.decoder import Decoder
 from transformer.multihead_attention import MultiHeadAttention
-from transformer.positional_encoding import PositionalEncoding
+# from transformer.positional_encoding import PositionalEncoding
 from transformer.pointerwise_feedforward import PointerwiseFeedforward
 from transformer.encoder_decoder import EncoderDecoder
 from transformer.encoder import Encoder
@@ -41,7 +41,8 @@ class Generator(nn.Module):
             nn.Linear(enc_inp_size + z_dim, d_model),
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
-                                                             dropout=dropout, activation='gelu'), num_layers=N),
+                                                             dropout=dropout, activation='gelu'),
+                                  num_layers=N, norm=nn.LayerNorm),
             nn.Linear(d_model, dec_out_size),
         )
 
@@ -88,7 +89,8 @@ class Critic(nn.Module):
             nn.Linear(disc_inp_size, d_model),
             PositionalEncoding(d_model=d_model, dropout=dropout),
             nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=d_model, nhead=h, dim_feedforward=d_ff,
-                                                             dropout=dropout, activation='gelu'), num_layers=N),
+                                                             dropout=dropout, activation='gelu'),
+                                  num_layers=N, norm=nn.LayerNorm),
             nn.Flatten(),
             nn.Linear(d_model * disc_seq_len, 1)
         )
