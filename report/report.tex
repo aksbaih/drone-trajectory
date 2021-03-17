@@ -38,14 +38,14 @@
 
 \maketitle
 
-% \begin{abstract}
-%   Required for final report
-% \end{abstract}
+ \begin{abstract}
+ Forecasting the possible trajecotries of other drones is important for a drone in a drone-race in order to avoid collision with them. In the other hand, there isn't only one possible trajectory for a drone given its history locations since it has the power to change its own direction. Therefore, I explore in this project training a Transformer GAN that generates a variaty of possible trajectories for the next second of a drone given its location history for the past 1.5 seconds.  I propose methods for evaluating this task. Finally, I train and evaluate multiple novel approaches on the UZH FPV rapid drone racing dataset and discuss potential improvements for the model.
+ \end{abstract}
 
 
 %\note{This template is built on NeurIPS 2019 template\footnote{\url{https://www.overleaf.com/latex/templates/neurips-2019/tprktwxmqmgk}} and provided for your convenience.}
 
-\note{Code available at \href{https://github.com/aksbaih/drone-trajectory}{https://github.com/aksbaih/drone-trajectory}.}
+\note{Code is available at \href{https://github.com/aksbaih/drone-trajectory}{https://github.com/aksbaih/drone-trajectory}.}
 
 \section{Introduction}
 \paragraph{Trajectory Prediction}$ $
@@ -85,7 +85,7 @@ I'm using 64 frames from each flight for validation, making around 9\% (1k frame
     \centering
     \includegraphics[width=0.45\textwidth]{gen-disc-figure.pdf}
     \includegraphics[width=0.45\textwidth]{gen-disc-parallel-figure.pdf}\\
-    \caption{The proposed GAN architecture.  The circle represents the temporal embedding for each timestep as proposed in \cite{giuliari2020transformer}}. Left is the original proposal, Right is the new parallelized one.
+    \caption{The proposed GAN architecture.  The circle represents the temporal embedding for each timestep as proposed in \cite{giuliari2020transformer}.  Left is the original proposal, Right is the new parallelized one.}
     \label{gen_disc_figure}
 \end{figure}
 
@@ -110,22 +110,13 @@ I'm using 64 frames from each flight for validation, making around 9\% (1k frame
 \end{figure}
 
 \paragraph{GAN-Based}$ $
-I implemented GAN-based model I proposed shown in Figure \ref{gen_disc_figure} (left) and trained it on the same dataset using Wasserstein Loss \cite{wloss} with multiple values of gradient penalty and critic repetitions. The training curves are shown in Figure \ref{sequential_training_loss}. Training took longer than for the baseline because of the sequential unfolding of the generator's decoder (coming from the assumption that we don't have ground truth for the generation task).  This sequential nature also led to vanishing gradient for the generator where it didn't learn past the random weights it was initialized on, leading to mode collapse in the generations. Some examples are shown in Figure \ref{sample_mode_collapse}.
-
-\paragraph{Analysis}$ $
-Looking at the loss curves in Figure \ref{sequential_training_loss}, we find two things:
-\begin{itemize}
-\item Higher Gradient Penality allows the generator to learn more by slowing down the critic as the Cyan and Magenta curves are flipped for the Critic and Generator.
-\item Smaller trajectory window (unfolds of the generator) lead to better training and smaller loss for the generator.  This is probably due to the vanishing gradient happening during the unfolding process for long sequences.
-\end{itemize}
-This leads to the conclusion that I should get rid of the sequential unfolding in the generator and to incorporate the injected noise better into the generator. Therefore I propose another approach shown in figure \ref{gen_disc_figure} (Right) where there's no sequential unfolding. Instead, random states are fed into the decoder, in addition to the states attained through the encoder. This should be enough information for the decoder to make a trajectory and should provide more variations since more randomness is fed into the model.
-
+\\I implemented GAN-based model I proposed shown in Figure \ref{gen_disc_figure} (left) and trained it on the same dataset using Wasserstein Loss \cite{wloss} with multiple values of gradient penalty and critic repetitions. The training curves are shown in Figure \ref{sequential_training_loss}. Training took longer than for the baseline because of the sequential unfolding of the generator's decoder (coming from the assumption that we don't have ground truth for the generation task).  This sequential nature also led to vanishing gradient for the generator where it didn't learn past the random weights it was initialized on, leading to mode collapse in the generations. Some examples are shown in Figure \ref{sample_mode_collapse}.
 \begin{figure}
     \centering
     \includegraphics[width=0.45\textwidth]{Loss_train_crit_collapse}
      \includegraphics[width=0.45\textwidth]{Loss_train_gen_collapse}\\
     \caption{W-Loss curves for Critic on the left and Generator on the right with batch on the horizontal axis. \textbf{Cyan} is \textbf{G}radient \textbf{P}enality of 10 and \textbf{W}indow of 8; \textbf{Magenta} is \textbf{GP} of 100 and \textbf{W} of 8; \textbf{Grey} is \textbf{GP} of 10 and \textbf{W} of 2; \textbf{Orange} is \textbf{GP} of 10 and \textbf{W} of 1 }
-    \label{sample_mode_collapse}
+    \label{sequential_training_loss}
 \end{figure}
 
 \begin{figure}
@@ -134,11 +125,52 @@ This leads to the conclusion that I should get rid of the sequential unfolding i
     \includegraphics[width=0.3\textwidth]{mode_collapse1}
     \includegraphics[width=0.3\textwidth]{mode_collapse2}\\
     \caption{A few samples generated by the generator during training. Magenta is the condition input sequence, Green is the real trajectory, and Blue is the generated trajectory. Notice how similar all the blue trajectories are for various conditions.}
-    \label{sequential_training_loss}
+    \label{sample_mode_collapse}
 \end{figure}
 
-\section{Moving Forward}
-After evaluating the original proposed method, I will implement the new method and evaluate it in a similar way. I will measure the fidelity and variaty of the generations using the metrics I proposed earlier. After that, I would like to try the following risky experiments:
+\paragraph{Analysis}$ $
+Looking at the loss curves in Figure \ref{sequential_training_loss}, we find two things:
+\begin{itemize}
+\item Higher Gradient Penality allows the generator to learn more by slowing down the critic as the Cyan and Magenta curves are flipped for the Critic and Generator.
+\item Smaller trajectory window (unfolds of the generator) lead to better training and smaller loss for the generator.  This is probably due to the vanishing gradient happening during the unfolding process for long sequences.
+\end{itemize}
+
+\paragraph{Improved GAN-Based}$ $
+\\
+This leads to the conclusion that I should get rid of the sequential unfolding in the generator and to incorporate the injected noise better into the generator. Therefore I propose another approach shown in figure \ref{gen_disc_figure} (Right) where there's no sequential unfolding. Instead, the decoder is abandoned for a simple Encoder-only transformer (similar to BERT) where the noise is concatenated to the input states. \\
+I also add an additional reconstruction loss term for the generator which is a scaled MSE loss. It's important to keep this scaled minimally so it doesn't reduce the variaty of the generations even though it boosts its fidelity. 
+I ran training for the new method for 3 hours with the losses shown in figure \ref{encoder_only_training}. That is 78 epochs.  The reconstruction loss was weighted by a factor of 2 which I chose after experimenting with $0.1$ and $1$.  Notice that the model doesn't stop improving at that point but I had to stop the training because of the time constraint.  Some examples are shown in Figure \ref{only_encoder_samples}.
+
+\paragraph{Analysis}$ $
+\\Looking at the loss curves in Figure \ref{only_encoder_samples}, we find two things:
+\begin{itemize}
+\item The new architecture solved the mode collapse problem and the predicted trajectories are not identical to each other anymore.
+\item The predicted trajectories have a problem with scale and the generations are too small spacially even with the reconstruction loss. There are multiple solutions to try for this. One is to increase the reconstruction loss weight. Another one is to normalize the input of the generator and rescale it to the original for the output. This is similar to instance normalization but with the additional step of scaling up/down to the original again at the output layer. 
+\end{itemize}
+
+
+
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.45\textwidth]{Loss_train_crit_enc}
+     \includegraphics[width=0.45\textwidth]{Loss_train_gen_enc}\\
+    \caption{W-Loss curves for Critic on the left and Generator on the right with batch on the horizontal axis.  Notice that learning still hasn't plateaued by the end.}
+    \label{encoder_only_training}
+\end{figure}
+
+\begin{figure}
+    \centering
+        \includegraphics[width=0.3\textwidth]{encoder_only_1}
+    \includegraphics[width=0.3\textwidth]{encoder_only_2}\\
+    \caption{A few samples generated by the generator during training. Magenta is the condition input sequence, Green is the real trajectory, and Blue is the generated trajectory. Notice that blue is clustered around the end of the trajectory.}
+    \label{only_encoder_samples}
+\end{figure}
+
+%\section{Moving Forward}
+%After evaluating the original proposed method, I will implement the new method and evaluate it in a similar way. I will measure the fidelity and variaty of the generations using the metrics I proposed earlier. After that, I would like to try the following risky experiments:
+
 \paragraph{Risky Experiments}$ $
 \begin{itemize}
 \item Request a longer prediction horizons and use that to measure how over-fit the model could be. Because the past trajectory of an object doesn't necessarily contain enough information about the future, if the model gets good results, it means that it's leaking information from the training set.
